@@ -121,99 +121,19 @@ export default class Tokenizer {
    * @param cbs コールバック関数群
    */
   constructor(cbs: Callbacks) {
-    if (false) {
-      this.cbs = cbs;
-    } else {
-      this.cbs = {
-        /** 属性データが見つかった時に呼び出される */
-        onAttribData: (start: number, endIndex: number) => {
-          cbs.onAttribData(start, endIndex);
-          console.log('onAttribData', {
-            start,
-            endIndex,
-            text: this.buffer.slice(start, endIndex),
-          });
-        },
-        /** 属性の終了時に呼び出される */
-        onAttribEnd: (quote: QuoteType, endIndex: number) => {
-          cbs.onAttribEnd(quote, endIndex);
-          console.log('onAttribEnd', {
-            quote,
-            endIndex,
-            text: quote,
-          });
-        },
-        /** 属性名が見つかった時に呼び出される */
-        onAttribName: (start: number, endIndex: number) => {
-          cbs.onAttribName(start, endIndex);
-          console.log('onAttribName', {
-            start,
-            endIndex,
-            text: this.buffer.slice(start, endIndex),
-          });
-        },
-        /** 終了タグが見つかった時に呼び出される */
-        onCloseTag: (start: number, endIndex: number) => {
-          cbs.onCloseTag(start, endIndex);
-          console.log('onCloseTag', {
-            start,
-            endIndex,
-            text: this.buffer.slice(start, endIndex),
-          });
-        },
-        /** 開始タグの終了時に呼び出される */
-        onOpenTagEnd: (endIndex: number) => {
-          cbs.onOpenTagEnd(endIndex);
-          console.log('onOpenTagEnd', {
-            endIndex,
-            text: '>',
-          });
-        },
-        /** 開始タグ名が見つかった時に呼び出される */
-        onOpenTagName: (start: number, endIndex: number) => {
-          cbs.onOpenTagName(start, endIndex);
-          console.log('onOpenTagName', {
-            start,
-            endIndex,
-            text: this.buffer.slice(start, endIndex),
-          });
-        },
-        /** 自己終了タグが見つかった時に呼び出される */
-        onSelfClosingTag: (endIndex: number) => {
-          cbs.onSelfClosingTag(endIndex);
-          console.log('onSelfClosingTag', {
-            endIndex,
-            text: '/>',
-          });
-        },
-        /** テキストが見つかった時に呼び出される */
-        onText: (start: number, endIndex: number) => {
-          cbs.onText(start, endIndex);
-          console.log('onText', {
-            start,
-            endIndex,
-            text: this.buffer.slice(start, endIndex),
-          });
-        },
-        /** パース終了時に呼び出される */
-        onEnd: () => {
-          cbs.onEnd();
-          console.log('onEnd');
-        },
-      };
-    }
+    this.cbs = cbs;
   }
 
   /**
    * パースを実行する
-   * @param rawText 処理する文字列
+   * @param rawHtml 処理するHTML文字列
    */
-  public parse(rawText: string): void {
+  public parse(rawHtml: string): void {
     this.state = State.Text;
     this.sectionStart = 0;
     this.index = 0;
 
-    this.buffer = rawText;
+    this.buffer = rawHtml;
     this.parseInternal();
     this.finish();
   }

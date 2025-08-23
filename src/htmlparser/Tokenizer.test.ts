@@ -470,4 +470,170 @@ describe('HTMLトークナイザー', () => {
       expect(callbacks.getEvents('closeTag')).toHaveLength(1);
     });
   });
+
+  describe('カバレッジ完全化テスト', () => {
+    test('終了タグ直後の>文字', () => {
+      // stateBeforeClosingTagName で c === CharCodes.Gt の場合をテスト (204行目)
+      const html = '</>text';
+      const result = parseHTML(html);
+      
+      expect(result.getTextContent(html)).toBe('</>text');
+    });
+
+    test('属性名後の非空白文字', () => {
+      // stateAfterAttributeName で !isWhitespace(c) の場合をテスト (261-263行目)
+      const html = '<div class id="test">Hello</div>';
+      const result = parseHTML(html);
+      
+      expect(result.getAttributeNames(html)).toEqual(['class', 'id']);
+      expect(result.getAttributeValues(html)).toEqual(['test']);
+    });
+
+    test('属性値前の非空白文字', () => {
+      // stateBeforeAttributeValue で !isWhitespace(c) の場合をテスト (292-295行目)
+      const html = '<div class=test>Hello</div>';
+      const result = parseHTML(html);
+      
+      expect(result.getAttributeNames(html)).toEqual(['class']);
+      expect(result.getAttributeValues(html)).toEqual(['test']);
+    });
+
+    test('空のHTMLでのhandleTrailingData', () => {
+      // handleTrailingData で this.sectionStart >= endIndex の場合をテスト (432-433行目)
+      const html = '';
+      const result = parseHTML(html);
+      
+      expect(result.getEvents('text')).toHaveLength(0);
+      expect(result.getEvents('end')).toHaveLength(1);
+    });
+
+    test('不完全なタグでのhandleTrailingData', () => {
+      // handleTrailingData の最後の onText 呼び出しをテスト (448-449行目)
+      const html = '<div';
+      const result = parseHTML(html);
+      
+      // 不完全なタグの残りの部分がテキストとして出力される
+      expect(result.getTextContent(html)).toBe('div');
+      expect(result.getEvents('text')).toHaveLength(1);
+    });
+
+    test('自己終了タグ内の非空白文字', () => {
+      // stateInSelfClosingTag で !isWhitespace(c) の場合をテスト
+      const html = '<img/src="test">Hello</img>';
+      const result = parseHTML(html);
+      
+      expect(result.getTagNames(html)).toEqual(['img']);
+      expect(result.getAttributeNames(html)).toEqual(['src']);
+    });
+
+    test('終了タグ名内の空白文字', () => {
+      // stateInClosingTagName で isWhitespace(c) の場合をテスト
+      const html = '<div>Hello</div >text';
+      const result = parseHTML(html);
+      
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getTextContent(html)).toBe('Hellotext');
+    });
+
+    test('属性値前の空白文字処理', () => {
+      // stateBeforeAttributeValue で isWhitespace(c) の場合をテスト
+      const html = '<div class=  "test">Hello</div>';
+      const result = parseHTML(html);
+      
+      expect(result.getAttributeNames(html)).toEqual(['class']);
+      expect(result.getAttributeValues(html)).toEqual(['test']);
+    });
+
+    test('属性名後の空白文字処理', () => {
+      // stateAfterAttributeName で isWhitespace(c) の場合をテスト
+      const html = '<div class  ="test">Hello</div>';
+      const result = parseHTML(html);
+      
+      expect(result.getAttributeNames(html)).toEqual(['class']);
+      expect(result.getAttributeValues(html)).toEqual(['test']);
+    });
+
+    test('属性値内でのクォート終了', () => {
+      // handleInAttributeValue でクォートが一致する場合をテスト
+      const html = '<div class="test" id=\'demo\'>Hello</div>';
+      const result = parseHTML(html);
+      
+      expect(result.getAttributeNames(html)).toEqual(['class', 'id']);
+      expect(result.getAttributeValues(html)).toEqual(['test', 'demo']);
+      
+      const attribEndEvents = result.getEvents('attribEnd');
+      expect(attribEndEvents[0].data.quote).toBe(QuoteType.Double);
+      expect(attribEndEvents[1].data.quote).toBe(QuoteType.Single);
+    });
+
+    test('連続する<文字（<<）', () => {
+      // 連続する<文字の処理をテスト
+      const html = '<<div>Hello</div>';
+      const result = parseHTML(html);
+      
+      // 最初の<はテキストとして、2番目の<からタグとして処理される
+      expect(result.getTextContent(html)).toBe('<Hello');
+      expect(result.getTagNames(html)).toEqual(['div']);
+    });
+
+    test('タグ名内に別のタグ開始（<div <div）', () => {
+      // タグ名の途中で新しいタグが始まる場合をテスト
+      const html = '<div <div>Hello</div>';
+      const result = parseHTML(html);
+      
+      // 実際の動作：最初のdivタグが認識され、2番目の<divは無視される
+      expect(result.getTextContent(html)).toBe('Hello');
+      expect(result.getTagNames(html)).toEqual(['div']);
+    });
+
+    test('属性名内の連続空白とクォート（<div class  ="">）', () => {
+      // 属性名と=の間に複数の空白がある場合をテスト
+      const html = '<div class  ="">Hello</div>';
+      const result = parseHTML(html);
+      
+      expect(result.getAttributeNames(html)).toEqual(['class']);
+      expect(result.getAttributeValues(html)).toEqual(['']);
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getTextContent(html)).toBe('Hello');
+    });
+
+    test('属性名後に不完全なタグ（<div class <）', () => {
+      // 属性名の後に新しいタグが始まる場合をテスト
+      const html = '<div class <span>Hello</span>';
+      const result = parseHTML(html);
+      
+      // 実際の動作：divタグが認識される
+      expect(result.getTextContent(html)).toBe('Hello');
+      expect(result.getTagNames(html)).toEqual(['div']);
+    });
+
+    test('複数の連続する不正パターン', () => {
+      // 複数の不正パターンが組み合わさった場合をテスト
+      const html = '<<div class  ="" <span class <p>Hello</p>';
+      const result = parseHTML(html);
+      
+      // 実際の動作：divタグが最初に認識される
+      expect(result.getTextContent(html)).toContain('Hello');
+      expect(result.getTagNames(html)).toEqual(['div']);
+    });
+
+    test('タグ開始文字のみ（<）', () => {
+      // 単独の<文字の処理をテスト
+      const html = 'Hello < World';
+      const result = parseHTML(html);
+      
+      expect(result.getTextContent(html)).toBe('Hello < World');
+      expect(result.getTagNames(html)).toEqual([]);
+    });
+
+    test('不完全なタグ名と属性の組み合わせ', () => {
+      // 様々な不完全パターンの組み合わせをテスト
+      const html = '<di class="test" <sp id="demo" <p>Content</p>';
+      const result = parseHTML(html);
+      
+      // 実際の動作：diタグが最初に認識される
+      expect(result.getTextContent(html)).toContain('Content');
+      expect(result.getTagNames(html)).toEqual(['di']);
+    });
+  });
 });
