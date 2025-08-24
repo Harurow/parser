@@ -95,18 +95,14 @@ export class SanitizeParser {
     let attribValue = '';
     let endIndex = 0
 
-    console.log('--- sanitize start ---');
-
     const callbacks: Callbacks = {
       ontext: (start: number, end: number) => {
         const token: TokenText = { tokenType: 'text', start, end };
         tokens.push(token);
         endIndex = token.end;
-        console.log('onText:', {start, end});
       },
       onopentagname: (start: number, end: number) => {
         tagName = buffer.slice(start, end);
-        console.log('onOpenTagName:', {start, end, tagName});
       },
       onopentagend: (end: number, tagStart: number, tagEnd: number) => {
         const token: TokeOpenTag = {
@@ -118,8 +114,6 @@ export class SanitizeParser {
         };
         tokens.push(token);
         endIndex = token.end;
-
-        console.log('onOpenTag:', token);
 
         tagName = '';
         tagAttributes = [];
@@ -135,8 +129,6 @@ export class SanitizeParser {
         tokens.push(token);
         endIndex = token.end;
 
-        console.log('onSelfClosingTag:', token);
-
         tagName = '';
         tagAttributes = [];
       },
@@ -150,21 +142,15 @@ export class SanitizeParser {
         };
         tokens.push(token);
         endIndex = token.end;
-
-        console.log('onCloseTag:', token);
       },
       onattribname: (start: number, end: number) => {
         const text = buffer.slice(start, end);
         attribName = text;
         attribValue = '';
-
-        console.log('onAttributeName:', {start, end, text});
       },
       onattribdata: (start: number, end: number) => {
         const text = buffer.slice(start, end);
         attribValue += text;
-
-        console.log('onAttirubteData:', {start, end, text});
       },
       onattribend: (quote: QuoteType, end: number) => {
         const tagAttrib: TagAttribute = {
@@ -175,18 +161,12 @@ export class SanitizeParser {
         tagAttributes.push(tagAttrib);
         attribName = '';
         attribValue = '';
-
-        console.log('onAttirubteEnd:', {tagAttrib});
       },
       onend: function (): void {
         if (endIndex < buffer.length) {
           // 残りのテキストを処理
           callbacks.ontext(endIndex, buffer.length);
-          console.log('onEnd with flashText');
-        } else {
-          console.log('onEnd');
         }
-        console.log('--- sanitize end ---');
       },
     };
 
