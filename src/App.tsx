@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import './App.css';
-import SanitizeParser from './SanitizeParser/SanitizeParser';
+import sanitizeHtml, { SanitizeOptions } from './SanitizeParser/SanitizeParser';
 
 function sanitizeHTML(input: string): string {
-  const parser = new SanitizeParser({
+  const option: SanitizeOptions = ({
     allowedTags: [
       { tagName: 'strong' },
       { tagName: 'u' },
@@ -34,8 +34,8 @@ function sanitizeHTML(input: string): string {
       }
     ],
   });
-  const result = parser.sanitize(input);
-  return result.html;
+  const sanitaized = sanitizeHtml(input, option);
+  return sanitaized;
 }
 
 const App: React.FC = () => {
