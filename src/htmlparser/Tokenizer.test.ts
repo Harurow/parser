@@ -476,7 +476,7 @@ describe('HTMLトークナイザー', () => {
       // stateBeforeClosingTagName で c === CharCodes.Gt の場合をテスト (204行目)
       const html = '</>text';
       const result = parseHTML(html);
-      
+
       expect(result.getTextContent(html)).toBe('</>text');
     });
 
@@ -484,7 +484,7 @@ describe('HTMLトークナイザー', () => {
       // stateAfterAttributeName で !isWhitespace(c) の場合をテスト (261-263行目)
       const html = '<div class id="test">Hello</div>';
       const result = parseHTML(html);
-      
+
       expect(result.getAttributeNames(html)).toEqual(['class', 'id']);
       expect(result.getAttributeValues(html)).toEqual(['test']);
     });
@@ -493,7 +493,7 @@ describe('HTMLトークナイザー', () => {
       // stateBeforeAttributeValue で !isWhitespace(c) の場合をテスト (292-295行目)
       const html = '<div class=test>Hello</div>';
       const result = parseHTML(html);
-      
+
       expect(result.getAttributeNames(html)).toEqual(['class']);
       expect(result.getAttributeValues(html)).toEqual(['test']);
     });
@@ -502,7 +502,7 @@ describe('HTMLトークナイザー', () => {
       // handleTrailingData で this.sectionStart >= endIndex の場合をテスト (432-433行目)
       const html = '';
       const result = parseHTML(html);
-      
+
       expect(result.getEvents('text')).toHaveLength(0);
       expect(result.getEvents('end')).toHaveLength(1);
     });
@@ -511,7 +511,7 @@ describe('HTMLトークナイザー', () => {
       // handleTrailingData の最後の onText 呼び出しをテスト (448-449行目)
       const html = '<div';
       const result = parseHTML(html);
-      
+
       // 不完全なタグの残りの部分がテキストとして出力される
       expect(result.getTextContent(html)).toBe('div');
       expect(result.getEvents('text')).toHaveLength(1);
@@ -521,7 +521,7 @@ describe('HTMLトークナイザー', () => {
       // stateInSelfClosingTag で !isWhitespace(c) の場合をテスト
       const html = '<img/src="test">Hello</img>';
       const result = parseHTML(html);
-      
+
       expect(result.getTagNames(html)).toEqual(['img']);
       expect(result.getAttributeNames(html)).toEqual(['src']);
     });
@@ -530,16 +530,17 @@ describe('HTMLトークナイザー', () => {
       // stateInClosingTagName で isWhitespace(c) の場合をテスト
       const html = '<div>Hello</div >text';
       const result = parseHTML(html);
-      
+
       expect(result.getTagNames(html)).toEqual(['div']);
-      expect(result.getTextContent(html)).toBe('Hellotext');
+      // 修正後：</div >はテキストとして処理されるため、全体が出力される
+      expect(result.getTextContent(html)).toBe('Hello</div >text');
     });
 
     test('属性値前の空白文字処理', () => {
       // stateBeforeAttributeValue で isWhitespace(c) の場合をテスト
       const html = '<div class=  "test">Hello</div>';
       const result = parseHTML(html);
-      
+
       expect(result.getAttributeNames(html)).toEqual(['class']);
       expect(result.getAttributeValues(html)).toEqual(['test']);
     });
@@ -548,7 +549,7 @@ describe('HTMLトークナイザー', () => {
       // stateAfterAttributeName で isWhitespace(c) の場合をテスト
       const html = '<div class  ="test">Hello</div>';
       const result = parseHTML(html);
-      
+
       expect(result.getAttributeNames(html)).toEqual(['class']);
       expect(result.getAttributeValues(html)).toEqual(['test']);
     });
@@ -557,10 +558,10 @@ describe('HTMLトークナイザー', () => {
       // handleInAttributeValue でクォートが一致する場合をテスト
       const html = '<div class="test" id=\'demo\'>Hello</div>';
       const result = parseHTML(html);
-      
+
       expect(result.getAttributeNames(html)).toEqual(['class', 'id']);
       expect(result.getAttributeValues(html)).toEqual(['test', 'demo']);
-      
+
       const attribEndEvents = result.getEvents('attribEnd');
       expect(attribEndEvents[0].data.quote).toBe(QuoteType.Double);
       expect(attribEndEvents[1].data.quote).toBe(QuoteType.Single);
@@ -570,7 +571,7 @@ describe('HTMLトークナイザー', () => {
       // 連続する<文字の処理をテスト
       const html = '<<div>Hello</div>';
       const result = parseHTML(html);
-      
+
       // 最初の<はテキストとして、2番目の<からタグとして処理される
       expect(result.getTextContent(html)).toBe('<Hello');
       expect(result.getTagNames(html)).toEqual(['div']);
@@ -580,7 +581,7 @@ describe('HTMLトークナイザー', () => {
       // タグ名の途中で新しいタグが始まる場合をテスト
       const html = '<div <div>Hello</div>';
       const result = parseHTML(html);
-      
+
       // 実際の動作：最初のdivタグが認識され、2番目の<divは無視される
       expect(result.getTextContent(html)).toBe('Hello');
       expect(result.getTagNames(html)).toEqual(['div']);
@@ -590,7 +591,7 @@ describe('HTMLトークナイザー', () => {
       // 属性名と=の間に複数の空白がある場合をテスト
       const html = '<div class  ="">Hello</div>';
       const result = parseHTML(html);
-      
+
       expect(result.getAttributeNames(html)).toEqual(['class']);
       expect(result.getAttributeValues(html)).toEqual(['']);
       expect(result.getTagNames(html)).toEqual(['div']);
@@ -601,7 +602,7 @@ describe('HTMLトークナイザー', () => {
       // 属性名の後に新しいタグが始まる場合をテスト
       const html = '<div class <span>Hello</span>';
       const result = parseHTML(html);
-      
+
       // 実際の動作：divタグが認識される
       expect(result.getTextContent(html)).toBe('Hello');
       expect(result.getTagNames(html)).toEqual(['div']);
@@ -611,7 +612,7 @@ describe('HTMLトークナイザー', () => {
       // 複数の不正パターンが組み合わさった場合をテスト
       const html = '<<div class  ="" <span class <p>Hello</p>';
       const result = parseHTML(html);
-      
+
       // 実際の動作：divタグが最初に認識される
       expect(result.getTextContent(html)).toContain('Hello');
       expect(result.getTagNames(html)).toEqual(['div']);
@@ -621,7 +622,7 @@ describe('HTMLトークナイザー', () => {
       // 単独の<文字の処理をテスト
       const html = 'Hello < World';
       const result = parseHTML(html);
-      
+
       expect(result.getTextContent(html)).toBe('Hello < World');
       expect(result.getTagNames(html)).toEqual([]);
     });
@@ -630,10 +631,123 @@ describe('HTMLトークナイザー', () => {
       // 様々な不完全パターンの組み合わせをテスト
       const html = '<di class="test" <sp id="demo" <p>Content</p>';
       const result = parseHTML(html);
-      
+
       // 実際の動作：diタグが最初に認識される
       expect(result.getTextContent(html)).toContain('Content');
       expect(result.getTagNames(html)).toEqual(['di']);
+    });
+  });
+
+  describe('クローズタグの空白文字テスト', () => {
+    test('クローズタグのタグ名前に空白（</ div>）', () => {
+      // HTMLの仕様では、クローズタグのタグ名前後に空白は許可されない
+      const html = '<div>Hello</ div>World</div>';
+      const result = parseHTML(html);
+
+      // </ div>はテキストとして処理されるべき
+      expect(result.getTextContent(html)).toBe('Hello</ div>World');
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getEvents('closeTag')).toHaveLength(1); // 最後の</div>のみ
+    });
+
+    test('クローズタグのタグ名後に空白（</div >）', () => {
+      const html = '<div>Hello</div >World';
+      const result = parseHTML(html);
+
+      // </div >はテキストとして処理されるべき
+      expect(result.getTextContent(html)).toBe('Hello</div >World');
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getEvents('closeTag')).toHaveLength(0); // クローズタグとして認識されない
+    });
+
+    test('クローズタグのタグ名前後に空白（</ div >）', () => {
+      const html = '<div>Hello</ div >World</div>';
+      const result = parseHTML(html);
+
+      // </ div >はテキストとして処理されるべき
+      expect(result.getTextContent(html)).toBe('Hello</ div >World');
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getEvents('closeTag')).toHaveLength(1); // 最後の</div>のみ
+    });
+
+    test('クローズタグのスラッシュ前に空白（< /div>）', () => {
+      const html = '<div>Hello< /div>World</div>';
+      const result = parseHTML(html);
+
+      // < /div>はテキストとして処理されるべき
+      expect(result.getTextContent(html)).toBe('Hello< /div>World');
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getEvents('closeTag')).toHaveLength(1); // 最後の</div>のみ
+    });
+
+    test('クローズタグのスラッシュ前とタグ名後に空白（< /div >）', () => {
+      const html = '<div>Hello< /div >World</div>';
+      const result = parseHTML(html);
+
+      // < /div >はテキストとして処理されるべき
+      expect(result.getTextContent(html)).toBe('Hello< /div >World');
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getEvents('closeTag')).toHaveLength(1); // 最後の</div>のみ
+    });
+
+    test('クローズタグのスラッシュ後とタグ名後に空白（</ div >）', () => {
+      const html = '<div>Hello</ div >World</div>';
+      const result = parseHTML(html);
+
+      // </ div >はテキストとして処理されるべき
+      expect(result.getTextContent(html)).toBe('Hello</ div >World');
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getEvents('closeTag')).toHaveLength(1); // 最後の</div>のみ
+    });
+
+    test('複数の不正なクローズタグパターン', () => {
+      const html = '<div>Hello</ div>< /span></ p >< /h1 ></div>';
+      const result = parseHTML(html);
+
+      // 全ての不正なクローズタグはテキストとして処理されるべき
+      expect(result.getTextContent(html)).toBe('Hello</ div>< /span></ p >< /h1 >');
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getEvents('closeTag')).toHaveLength(1); // 最後の</div>のみ
+    });
+
+    test('正常なクローズタグと不正なクローズタグの混在', () => {
+      const html = '<div><span>Hello</span></ invalid>World</div>';
+      const result = parseHTML(html);
+
+      // 正常な</span>と</div>は認識され、</ invalid>はテキストとして処理される
+      expect(result.getTextContent(html)).toBe('Hello</ invalid>World');
+      expect(result.getTagNames(html)).toEqual(['div', 'span']);
+      expect(result.getEvents('closeTag')).toHaveLength(2); // </span>と</div>
+    });
+
+    test('タブ文字を含むクローズタグ（</\tdiv>）', () => {
+      const html = '<div>Hello</\tdiv>World</div>';
+      const result = parseHTML(html);
+
+      // タブ文字を含むクローズタグはテキストとして処理されるべき
+      expect(result.getTextContent(html)).toBe('Hello</\tdiv>World');
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getEvents('closeTag')).toHaveLength(1); // 最後の</div>のみ
+    });
+
+    test('改行文字を含むクローズタグ（</\ndiv>）', () => {
+      const html = '<div>Hello</\ndiv>World</div>';
+      const result = parseHTML(html);
+
+      // 改行文字を含むクローズタグはテキストとして処理されるべき
+      expect(result.getTextContent(html)).toBe('Hello</\ndiv>World');
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getEvents('closeTag')).toHaveLength(1); // 最後の</div>のみ
+    });
+
+    test('複数の空白文字を含むクローズタグ（</  div  >）', () => {
+      const html = '<div>Hello</  div  >World</div>';
+      const result = parseHTML(html);
+
+      // 複数の空白文字を含むクローズタグはテキストとして処理されるべき
+      expect(result.getTextContent(html)).toBe('Hello</  div  >World');
+      expect(result.getTagNames(html)).toEqual(['div']);
+      expect(result.getEvents('closeTag')).toHaveLength(1); // 最後の</div>のみ
     });
   });
 });

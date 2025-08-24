@@ -199,7 +199,11 @@ export default class Tokenizer {
    */
   private stateBeforeClosingTagName(c: number): void {
     if (isWhitespace(c)) {
-      // 無視
+      // HTMLの仕様では、</の直後に空白文字は許可されない
+      // テキストとして処理する
+      this.state = State.Text;
+      // sectionStartを<の位置に戻す
+      this.sectionStart = this.sectionStart;
     } else if (c === CharCodes.Gt) {
       this.state = State.Text;
     } else {
@@ -213,11 +217,19 @@ export default class Tokenizer {
    * @param c 現在の文字コード
    */
   private stateInClosingTagName(c: number): void {
-    if (c === CharCodes.Gt || isWhitespace(c)) {
+    if (c === CharCodes.Gt) {
       this.cbs.onCloseTag(this.sectionStart, this.index);
       this.sectionStart = -1;
       this.state = State.AfterClosingTagName;
       this.stateAfterClosingTagName(c);
+    } else if (isWhitespace(c)) {
+      // HTMLの仕様では、タグ名の途中に空白文字は許可されない
+      // テキストとして処理する
+      this.state = State.Text;
+      // sectionStartを<の位置に戻す（<の位置はsectionStart - 2）
+      // </div > の場合、divの開始位置からさかのぼって<の位置を計算
+      const tagStartPos = this.sectionStart - 2; // </の<の位置
+      this.sectionStart = tagStartPos;
     }
   }
 
