@@ -66,7 +66,7 @@ function isEndOfTagSection(c: number): boolean {
  * @param c 判定する文字コード
  * @returns ASCIIアルファベットの場合はtrue
  */
-function isASCIIAlpha(c: number): boolean {
+function isAsciiAlpha(c: number): boolean {
   return (
     (c >= CharCodes.LowerA && c <= CharCodes.LowerZ) ||
     (c >= CharCodes.UpperA && c <= CharCodes.UpperZ)
@@ -126,14 +126,14 @@ export default class Tokenizer {
 
   /**
    * パースを実行する
-   * @param rawHtml 処理するHTML文字列
+   * @param rawHtmlText 処理するHTML文字列
    */
-  public parse(rawHtml: string): void {
+  public parse(rawHtmlText: string): void {
     this.state = State.Text;
     this.sectionStart = 0;
     this.index = 0;
 
-    this.buffer = rawHtml;
+    this.buffer = rawHtmlText;
     this.parseInternal();
     this.finish();
   }
@@ -161,7 +161,7 @@ export default class Tokenizer {
    * @returns タグ開始文字として有効な場合はtrue
    */
   private isTagStartChar(c: number) {
-    return isASCIIAlpha(c);
+    return isAsciiAlpha(c);
   }
 
   /**
