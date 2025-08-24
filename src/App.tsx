@@ -21,7 +21,12 @@ function sanitizeHTML(input: string): string {
       { tagName: 'a',
         onAttribute: (name, value) => {
           if (name === 'href') {
-            return /^https?:\/\//.test(value);
+            try {
+              const url = new URL(value, window.location.origin);
+              return url.protocol === 'http:' || url.protocol === 'https:';
+            } catch {
+              return false;
+            }
           }
           return false;
         },
