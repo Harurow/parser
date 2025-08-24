@@ -1,82 +1,11 @@
 import React, { useState } from 'react';
 import './App.css';
-import Parser, { type Handler } from './htmlparser/Parser';
+import SanitizeParser from './SanitizeParser/SanitizeParser';
 
 function sanitizeHTML(input: string): string {
-  // HTMLエスケープ関数
-  function escapeHTML(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  // 許可されたタグと属性のリスト
-  const allowedTags: Record<string, string[]> = {
-    'a': ['href'],
-    'font': ['size', 'color'],
-    'u': [],
-    'strong': [],
-    'li': [],
-    'ul': [],
-    'br': []
-  };
-
-  try {
-    const parser = new Parser();
-    const tokens = parser.parse(input);
-
-    let result = '';
-
-    for (const token of tokens) {
-      if (token.type === 'text') {
-        // テキストトークンはそのまま追加
-        result += input.slice(token.startIndex, token.endIndex);
-      } else if (token.type === 'openTag') {
-        const tagName = token.tagName.toLowerCase();
-
-        if (allowedTags[tagName]) {
-          // 許可されたタグの場合
-          let tagStr = `<${token.tagName}`;
-
-          // 許可された属性のみを追加
-          if (token.attributes) {
-            const allowedAttrs = allowedTags[tagName];
-            for (const attr of token.attributes) {
-              if (allowedAttrs.includes(attr.name.toLowerCase()) && attr.value?.value) {
-                tagStr += ` ${attr.name}="${attr.value.value}"`;
-              }
-            }
-          }
-
-          if (token.selfClosing) {
-            tagStr += ' />';
-          } else {
-            tagStr += '>';
-          }
-
-          result += tagStr;
-        } else {
-          // 許可されていないタグはエスケープ
-          result += escapeHTML(input.slice(token.startIndex, token.endIndex));
-        }
-      } else if (token.type === 'closeTag') {
-        const tagName = token.tagName.toLowerCase();
-
-        if (allowedTags[tagName]) {
-          // 許可されたタグの場合
-          result += `</${token.tagName}>`;
-        } else {
-          // 許可されていないタグはエスケープ
-          result += escapeHTML(input.slice(token.startIndex, token.endIndex));
-        }
-      }
-    }
-
-    return result;
-  } catch (error) {
-    // パースエラーの場合は全体をエスケープ
-    return escapeHTML(input);
-  }
+  const parser = new SanitizeParser();
+  const result = parser.sanitize(input);
+  return result.html;
 }
 
 const App: React.FC = () => {
@@ -142,7 +71,7 @@ const App: React.FC = () => {
           </div>
           {message && (
             <div className="message-display">
-              <p>入力されたメッセージ(処理済み):</p>
+              <p>入力されたメッセージ:sanitized</p>
               <div dangerouslySetInnerHTML={{__html: sanitized}}></div>
               <p>入力されたメッセージ:raw</p>
               <div dangerouslySetInnerHTML={{__html: message}}></div>
