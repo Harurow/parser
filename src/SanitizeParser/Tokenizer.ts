@@ -65,15 +65,15 @@ export enum QuoteType {
 }
 
 export interface Callbacks {
+  ontext(start: number, endIndex: number): void;
+  onopentagname(start: number, endIndex: number): void;
+  onopentagend(endIndex: number, tagStart: number, tagEnd: number): void;
+  onselfclosingtag(endIndex: number, tagStart: number, tagEnd: number): void;
+  onclosetag(tagNameStart: number, tagNameEnd: number, tagStart: number, tagEnd: number): void;
+  onattribname(start: number, endIndex: number): void;
   onattribdata(start: number, endIndex: number): void;
   onattribend(quote: QuoteType, endIndex: number): void;
-  onattribname(start: number, endIndex: number): void;
-  onclosetag(start: number, endIndex: number): void;
   onend(): void;
-  onopentagend(endIndex: number): void;
-  onopentagname(start: number, endIndex: number): void;
-  onselfclosingtag(endIndex: number): void;
-  ontext(start: number, endIndex: number): void;
 }
 
 export default class Tokenizer {
@@ -85,6 +85,8 @@ export default class Tokenizer {
   private sectionStart = 0;
   /** The index within the buffer that we are currently looking at. */
   private index = 0;
+  /** The start of the current tag (including '<') */
+  private tagStart = 0;
 
   constructor(private readonly cbs: Callbacks) {}
 
@@ -147,6 +149,7 @@ export default class Tokenizer {
       }
       this.state = State.BeforeTagName;
       this.sectionStart = this.index;
+      this.tagStart = this.index; // Record the start of the tag
     }
   }
 
@@ -184,7 +187,7 @@ export default class Tokenizer {
 
   private stateInClosingTagName(c: number): void {
     if (c === CharCodes.Gt || isWhitespace(c)) {
-      this.cbs.onclosetag(this.sectionStart, this.index);
+      this.cbs.onclosetag(this.sectionStart, this.index, this.tagStart, this.index);
       this.sectionStart = -1;
       this.state = State.AfterClosingTagName;
       this.stateAfterClosingTagName(c);
@@ -200,7 +203,7 @@ export default class Tokenizer {
 
   private stateBeforeAttributeName(c: number): void {
     if (c === CharCodes.Gt) {
-      this.cbs.onopentagend(this.index);
+      this.cbs.onopentagend(this.index, this.tagStart, this.index);
       this.state = State.Text;
       this.sectionStart = this.index + 1;
     } else if (c === CharCodes.Slash) {
@@ -213,7 +216,7 @@ export default class Tokenizer {
 
   private stateInSelfClosingTag(c: number): void {
     if (c === CharCodes.Gt) {
-      this.cbs.onselfclosingtag(this.index);
+      this.cbs.onselfclosingtag(this.index, this.tagStart, this.index);
       this.state = State.Text;
       this.sectionStart = this.index + 1;
     } else if (!isWhitespace(c)) {

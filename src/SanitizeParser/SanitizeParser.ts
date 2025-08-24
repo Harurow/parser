@@ -88,72 +88,70 @@ export class SanitizeParser {
    */
   public sanitize(htmlText: string): SanitizeResult {
     const buffer = htmlText;
-    let secsionStartIndex = 0;
     let tokens: Token[] = [];
-    let tagStartIndex = -1;
     let tagName = '';
     let tagAttributes: TagAttribute[] = [];
     let attribName = '';
     let attribValue = '';
+    let endIndex = 0
 
     console.log('--- sanitize start ---');
 
     const callbacks: Callbacks = {
       ontext: (start: number, end: number) => {
-        tokens.push({ tokenType: 'text', start, end });
-        console.log('onText:', {start, end, secsionStartIndex});
-        secsionStartIndex = end + 1;
+        const token: TokenText = { tokenType: 'text', start, end };
+        tokens.push(token);
+        endIndex = token.end;
+        console.log('onText:', {start, end});
       },
       onopentagname: (start: number, end: number) => {
-        tagStartIndex = start - 1; // '<'の位置
         tagName = buffer.slice(start, end);
-        secsionStartIndex = start - 1;  // '<'の位置
-
         console.log('onOpenTagName:', {start, end, tagName});
       },
-      onopentagend: (end: number) => {
-        tokens.push({
+      onopentagend: (end: number, tagStart: number, tagEnd: number) => {
+        const token: TokeOpenTag = {
           tokenType: 'openTag',
-          start: tagStartIndex,
-          end: end + 1, // '>'の次の位置
+          start: tagStart,
+          end: tagEnd + 1, // '>'の次の位置
           tagName,
           atttributes: tagAttributes
-        });
+        };
+        tokens.push(token);
+        endIndex = token.end;
 
-        console.log('onOpenTag:', {
-          tagName: tagName,
-          start: tagStartIndex,
-          end: end + 1,
-          text: buffer.slice(tagStartIndex, end + 1),
-          attributes: tagAttributes
-        });
+        console.log('onOpenTag:', token);
 
-        tagStartIndex = -1;
         tagName = '';
         tagAttributes = [];
-        secsionStartIndex = end + 2; // '>'の次の位置
       },
-      onselfclosingtag: function (end: number): void {
-        tokens.push({
+      onselfclosingtag: function (end: number, tagStart: number, tagEnd: number): void {
+        const token: TokenSelfCloseTag = {
           tokenType: 'selfClosingTag',
-          start: tagStartIndex,
-          end: end + 1, // '/>'の次の位置
+          start: tagStart,
+          end: tagEnd + 1, // '>'の次の位置
           tagName,
           atttributes: tagAttributes
-        });
+        };
+        tokens.push(token);
+        endIndex = token.end;
 
-        console.log('onSelfClosingTag:', {
-          tagName: tagName,
-          start: tagStartIndex,
-          end: end + 1,
-          text: buffer.slice(tagStartIndex, end + 1),
-          attributes: tagAttributes
-        });
+        console.log('onSelfClosingTag:', token);
 
-        tagStartIndex = -1;
         tagName = '';
         tagAttributes = [];
-        secsionStartIndex = end + 2; // '>'の次の位置
+      },
+      onclosetag: (start: number, end: number, tagStart: number, tagEnd: number) => {
+        tagName = buffer.slice(start, end);
+        const token: TokenCloseTag = {
+          tokenType: 'closeTag',
+          start: tagStart,
+          end: tagEnd + 1, // '>'の次の位置
+          tagName,
+        };
+        tokens.push(token);
+        endIndex = token.end;
+
+        console.log('onCloseTag:', token);
       },
       onattribname: (start: number, end: number) => {
         const text = buffer.slice(start, end);
@@ -180,43 +178,10 @@ export class SanitizeParser {
 
         console.log('onAttirubteEnd:', {tagAttrib});
       },
-      onclosetag: (start: number, end: number) => {
-        const tagName = buffer.slice(start, end);
-
-        const GtCharCode = 0x3e; // '>'
-        const fastForwardToGt = (): boolean => {
-            while (++end < buffer.length) {
-                if (buffer.charCodeAt(end) === GtCharCode) {
-                    return true;
-                }
-            }
-
-            end = buffer.length  - 1;
-
-            return false;
-        }
-
-        if (buffer.charCodeAt(end) === GtCharCode || fastForwardToGt()) {
-          tokens.push({
-            tokenType: 'closeTag',
-            start: secsionStartIndex, // '</'の位置
-            end: end + 1, // '>'の次の位置
-            tagName,
-          });
-
-          console.log('onCloseTag:', {start: secsionStartIndex, end, tagName});
-          secsionStartIndex = end + 1;
-        } else {
-          // タグが閉じていないので文字扱い
-          callbacks.ontext(secsionStartIndex, end);
-          console.log('onCloseTag but not closed');
-          secsionStartIndex = buffer.length;
-        }
-      },
       onend: function (): void {
-        if (secsionStartIndex < buffer.length) {
+        if (endIndex < buffer.length) {
           // 残りのテキストを処理
-          callbacks.ontext(secsionStartIndex, buffer.length);
+          callbacks.ontext(endIndex, buffer.length);
           console.log('onEnd with flashText');
         } else {
           console.log('onEnd');
@@ -241,7 +206,7 @@ export class SanitizeParser {
           // 属性の処理
           token.atttributes.forEach(attr => {
             if (allowedTag.onAttribute) {
-              if (allowedTag.onAttribute(attr.name, attr.value)) {
+              if (allowedTag.onAttribute(attr.name.toLowerCase(), attr.value)) {
                 tagString += ` ${attr.name}="${escapeText(attr.value)}"`;
               }
             }
