@@ -150,9 +150,10 @@ export class SanitizeParser {
    */
   public sanitize(htmlText: string): { html: string } {
     try {
-      // 入力検証
+      // 入力検証と型変換
       if (typeof htmlText !== 'string') {
-        throw new Error('Input must be a string');
+        console.warn('SanitizeParser: Input is not a string, converting to string');
+        htmlText = String(htmlText);
       }
 
       // 空文字列の場合は早期リターン
@@ -166,7 +167,7 @@ export class SanitizeParser {
     } catch (error) {
       // エラーが発生した場合は入力をエスケープして返す
       console.warn('SanitizeParser error:', error);
-      return { html: escapeText(htmlText) };
+      return { html: escapeText(String(htmlText)) };
     }
   }
 
