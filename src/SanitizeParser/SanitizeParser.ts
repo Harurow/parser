@@ -7,7 +7,7 @@
  * - 閉じタグの自動生成を回避
  */
 
-import { QuoteType, Tokenizer, TokenizerCallbacks } from 'htmlparser2';
+import Tokenizer, { Callbacks, QuoteType } from './Tokenizer';
 
 // htmlparser2のTokenizerは直接使用できないため、シンプルな実装を提供
 
@@ -98,7 +98,7 @@ export class SanitizeParser {
 
     console.log('--- sanitize start ---');
 
-    const callbacks: TokenizerCallbacks = {
+    const callbacks: Callbacks = {
       ontext: (start: number, end: number) => {
         tokens.push({ tokenType: 'text', start, end });
         console.log('onText:', {start, end, secsionStartIndex});
@@ -168,11 +168,6 @@ export class SanitizeParser {
 
         console.log('onAttirubteData:', {start, end, text});
       },
-      onattribentity: (codepoint: number) => {
-        attribValue += String.fromCodePoint(codepoint);
-
-        console.log('onAttirubteEntity:', {codepoint});
-      },
       onattribend: (quote: QuoteType, end: number) => {
         const tagAttrib: TagAttribute = {
           name: attribName,
@@ -201,41 +196,22 @@ export class SanitizeParser {
             return false;
         }
 
-        if (fastForwardToGt()) {
+        if (buffer.charCodeAt(end) === GtCharCode || fastForwardToGt()) {
           tokens.push({
             tokenType: 'closeTag',
-            start: start - 2, // '</'の位置
-            end,
+            start: secsionStartIndex, // '</'の位置
+            end: end + 1, // '>'の次の位置
             tagName,
           });
-          secsionStartIndex = end + 1;
 
-          console.log('onCloseTag:', {start, end, tagName});
+          console.log('onCloseTag:', {start: secsionStartIndex, end, tagName});
+          secsionStartIndex = end + 1;
         } else {
           // タグが閉じていないので文字扱い
-          callbacks.ontext(start - 2, end);
-          console.log('onCloseTag:', {start, end, tagName});
+          callbacks.ontext(secsionStartIndex, end);
+          console.log('onCloseTag but not closed');
           secsionStartIndex = buffer.length;
         }
-      },
-      oncomment: (start: number, end: number) => {
-        // コメントは文字扱い
-        callbacks.ontext(start - 4, end + 1);
-        console.log('onComment:', {start, end});
-      },
-      ondeclaration: function (start: number, end: number): void {
-        // でクリエーションは文字扱い
-        callbacks.ontext(start - 2, end + 1);
-        console.log('onDeclaration:', {start, end});
-      },
-      oncdata: function (start: number, endIndex: number, endOffset: number): void {
-        throw new Error('Function not implemented.');
-      },
-      onprocessinginstruction: function (start: number, endIndex: number): void {
-        throw new Error('Function not implemented.');
-      },
-      ontextentity: function (codepoint: number, endIndex: number): void {
-        throw new Error('Function not implemented.');
       },
       onend: function (): void {
         if (secsionStartIndex < buffer.length) {
@@ -249,16 +225,8 @@ export class SanitizeParser {
       },
     };
 
-    const tokenizer = new Tokenizer(
-      {
-        decodeEntities: false,
-        xmlMode: false,
-      }
-      , callbacks
-    );
-
-    tokenizer.write(htmlText);
-    tokenizer.end();
+    const tokenizer = new Tokenizer(callbacks);
+    tokenizer.parse(htmlText);
 
     let sanitizedText = '';
     tokens.forEach(token => {
@@ -267,7 +235,6 @@ export class SanitizeParser {
         const sanitized = escapeText(text);
         sanitizedText += sanitized;
       } else if (token.tokenType === 'openTag' || token.tokenType === 'selfClosingTag') {
-
         const allowedTag = this.options.allowedTags?.find(t => t.tagName.toLowerCase() === token.tagName.toLowerCase());
         if (allowedTag) {
           let tagString = `<${token.tagName}`;
@@ -293,6 +260,15 @@ export class SanitizeParser {
             tagString += '>';
           }
           sanitizedText += tagString;
+        } else {
+          // 許可されていないタグは文字列扱い
+          const text = buffer.slice(token.start, token.end);
+          sanitizedText += escapeText(text);
+        }
+      } else if (token.tokenType === 'closeTag') {
+        const allowedTag = this.options.allowedTags?.find(t => t.tagName.toLowerCase() === token.tagName.toLowerCase());
+        if (allowedTag) {
+          sanitizedText += `</${token.tagName}>`;
         } else {
           // 許可されていないタグは文字列扱い
           const text = buffer.slice(token.start, token.end);
