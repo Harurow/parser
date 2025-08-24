@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
-import sanitizeHtml, { SanitizeOptions } from './SanitizeParser/SanitizeParser';
+import { sanitizeHtml, SanitizeOptions } from './SanitizeParser/SanitizeParser';
 
 function sanitizeHTML(input: string): string {
   const option: SanitizeOptions = ({
