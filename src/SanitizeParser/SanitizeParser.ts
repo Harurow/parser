@@ -15,7 +15,6 @@ import Tokenizer, { Callbacks, QuoteType } from "./Tokenizer";
  * HTMLエスケープ用の定数
  */
 const HTML_ESCAPE_MAP = {
-  '&': '&amp;',
   '<': '&lt;',
   '>': '&gt;',
   '"': '&quot;',
@@ -25,7 +24,7 @@ const HTML_ESCAPE_MAP = {
 /**
  * HTMLエスケープ用の正規表現
  */
-const HTML_ESCAPE_REGEX = /[&<>"']/g;
+const HTML_ESCAPE_REGEX = /[<>"']/g;
 
 /**
  * 許可するタグ情報
@@ -405,9 +404,15 @@ export class SanitizeParser {
         if (attr.quoteType === QuoteType.NoValue) {
           // 値なし属性
           attributeString += ` ${attr.name}`;
-        } else {
+        } else if (attr.quoteType === QuoteType.Single) {
           // 値あり属性
-          attributeString += ` ${attr.name}="${escapeText(attr.value)}"`;
+          attributeString += ` ${attr.name}='${attr.value}'`;
+        } else if (attr.quoteType === QuoteType.Double) {
+          // 値あり属性
+          attributeString += ` ${attr.name}="${attr.value}"`;
+        } else {
+          // 値あり属性（クォートなし）
+          attributeString += ` ${attr.name}="${attr.value.replace(/"/g, '\\"')}"`; // ダブルクォートで囲む際にエスケープ
         }
       }
     });
@@ -425,8 +430,8 @@ export class SanitizeParser {
     if (allowedTag.onAttribute) {
       return allowedTag.onAttribute(attr.name.toLowerCase(), attr.value);
     } else {
-      // onAttributeが指定されていない場合はすべての属性を許可
-      return true;
+      // onAttributeが指定されていない場合はすべての属性を許可しない
+      return false;
     }
   }
 
@@ -442,8 +447,8 @@ export class SanitizeParser {
     if (allowedTag.defaultAttributes) {
       for (const [attrName, attrValue] of Object.entries(allowedTag.defaultAttributes)) {
         // 既存属性に含まれていなければ追加
-        if (!existingAttributes.find((a) => a.name === attrName)) {
-          defaultAttributeString += ` ${attrName}="${escapeText(attrValue)}"`;
+        if (!existingAttributes.find((a) => a.name.toLocaleLowerCase() === attrName.toLocaleLowerCase())) {
+          defaultAttributeString += ` ${attrName}="${attrValue}"`;
         }
       }
     }
